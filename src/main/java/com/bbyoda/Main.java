@@ -20,9 +20,16 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
+
 public class Main {
-    public static void main(String[] args) throws Exception {
+    static void main(String[] args) throws Exception {
         if (args.length != 1) throw new IllegalArgumentException("Please provide valid mp3 directory!");
+
+        org.h2.tools.Server webServer = org.h2.tools.Server.createWebServer(
+                "-webPort", "8082"
+        ).start();
+
+        System.out.println("H2 Web Console running at:" + webServer.getURL());
 
         String pathString = args[0];
         Path path = Paths.get(pathString);
@@ -32,14 +39,18 @@ public class Main {
 
         List<Path> mp3Paths = new ArrayList<>();
 
-        try (DirectoryStream<Path> paths = Files.newDirectoryStream(path, ".mp3")) {
+        try (DirectoryStream<Path> paths = Files.newDirectoryStream(path)) {
+            paths.forEach(p -> System.out.println("File: " + p.getFileName()));
+        }
+
+        try (DirectoryStream<Path> paths = Files.newDirectoryStream(path, "*.mp3")) {
             paths.forEach(p -> {
                 System.out.println("Found mp3 file: " + p.toString());
                 mp3Paths.add(p);
             });
         }
 
-        List<Audio> audios = mp3Paths.stream().map(p-> {
+        List<Audio> audios = mp3Paths.stream().map(p -> {
             try {
                 Mp3File mp3File = new Mp3File(p);
                 ID3v2 id3 = mp3File.getId3v2Tag();
@@ -52,7 +63,7 @@ public class Main {
         try (Connection conn = DriverManager.getConnection("jdbc:h2:~/mydatabase;AUTO_SERVER=TRUE;INIT=runscript from './create.sql'")) {
             PreparedStatement st = conn.prepareStatement("INSERT INTO AUDIOS (artist, release_year, album, title) VALUES (?, ?, ?, ?);");
 
-            for(Audio audio: audios ) {
+            for (Audio audio : audios) {
                 st.setString(1, audio.artist());
                 st.setString(2, audio.year());
                 st.setString(3, audio.album());
@@ -109,6 +120,7 @@ public class Main {
         }
     }
 
-    public record Audio(String artist, String year, String album, String title) {}
+    public record Audio(String artist, String year, String album, String title) {
+    }
 
 }
