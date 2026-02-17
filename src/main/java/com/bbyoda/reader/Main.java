@@ -20,7 +20,6 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-
 public class Main {
 
     private static final String DB_URL = "jdbc:h2:~/mydatabase;AUTO_SERVER=TRUE";
@@ -29,9 +28,8 @@ public class Main {
     static void main(String[] args) throws Exception {
         if (args.length != 1) throw new IllegalArgumentException("Please provide valid mp3 directory!");
 
-        org.h2.tools.Server webServer = org.h2.tools.Server.createWebServer(
-                "-webPort", "8082"
-        ).start();
+        org.h2.tools.Server webServer =
+                org.h2.tools.Server.createWebServer("-webPort", "8082").start();
 
         System.out.println("H2 Web Console running at: " + webServer.getURL());
 
@@ -54,23 +52,26 @@ public class Main {
             });
         }
 
-        List<Audio> audios = mp3Paths.stream().map(p -> {
-            try {
-                Mp3File mp3File = new Mp3File(p);
-                ID3v2 id3 = mp3File.getId3v2Tag();
+        List<Audio> audios = mp3Paths.stream()
+                .map(p -> {
+                    try {
+                        Mp3File mp3File = new Mp3File(p);
+                        ID3v2 id3 = mp3File.getId3v2Tag();
 
-                if (id3 == null) return new Audio("", "", "", "");
+                        if (id3 == null) return new Audio("", "", "", "");
 
-                return new Audio(id3.getArtist(), id3.getYear(), id3.getAlbum(), id3.getTitle());
+                        return new Audio(id3.getArtist(), id3.getYear(), id3.getAlbum(), id3.getTitle());
 
-            } catch (IOException | UnsupportedTagException | InvalidDataException e) {
-                throw new RuntimeException(e);
-            }
-        }).toList();
+                    } catch (IOException | UnsupportedTagException | InvalidDataException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .toList();
 
         try (Connection conn = DriverManager.getConnection(INIT_DB_URL)) {
             System.out.println("Connected to the database successfully.");
-            PreparedStatement st = conn.prepareStatement("INSERT INTO AUDIOS (artist, release_year, album, title) VALUES (?, ?, ?, ?);");
+            PreparedStatement st = conn.prepareStatement(
+                    "INSERT INTO AUDIOS (artist, release_year, album, title) VALUES (?, ?, ?, ?);");
 
             for (Audio audio : audios) {
                 st.setString(1, audio.artist());
@@ -83,7 +84,6 @@ public class Main {
 
             int[] updates = st.executeBatch();
             System.out.println("Inserted [=" + updates.length + "] records into the database.");
-
         }
 
         Server server = new Server();
@@ -91,8 +91,7 @@ public class Main {
         connector.setPort(8080);
         server.addConnector(connector);
 
-        ServletContextHandler context =
-                new ServletContextHandler(ServletContextHandler.SESSIONS);
+        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
         server.setHandler(context);
 
@@ -103,7 +102,6 @@ public class Main {
 
         server.start();
         server.join();
-
     }
 
     public static class AudioServlet extends HttpServlet {
@@ -118,30 +116,38 @@ public class Main {
 
                 while (rs.next()) {
                     builder.append("<tr class=\"table\">")
-                            .append("<td>").append(rs.getString("release_year")).append("</td>")
-                            .append("<td>").append(rs.getString("artist")).append("</td>")
-                            .append("<td>").append(rs.getString("album")).append("</td>")
-                            .append("<td>").append(rs.getString("title")).append("</td>")
+                            .append("<td>")
+                            .append(rs.getString("release_year"))
+                            .append("</td>")
+                            .append("<td>")
+                            .append(rs.getString("artist"))
+                            .append("</td>")
+                            .append("<td>")
+                            .append(rs.getString("album"))
+                            .append("</td>")
+                            .append("<td>")
+                            .append(rs.getString("title"))
+                            .append("</td>")
                             .append("</tr>");
                 }
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
 
-            String html = "<html><h1>Your audios</h1><table><tr><th>Year</th><th>Artist</th><th>Album</th><th>Title</th></tr>" + builder + "</table></html>";
+            String html =
+                    "<html><h1>Your audios</h1><table><tr><th>Year</th><th>Artist</th><th>Album</th><th>Title</th></tr>"
+                            + builder + "</table></html>";
             resp.getWriter().write(html);
         }
     }
 
     public static class HelloWorldServlet extends HttpServlet {
-        
+
         @Override
         protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
             resp.getWriter().write("Hello, World!");
         }
     }
 
-    public record Audio(String artist, String year, String album, String title) {
-    }
-
+    public record Audio(String artist, String year, String album, String title) {}
 }
