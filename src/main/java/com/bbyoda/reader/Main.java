@@ -1,4 +1,4 @@
-package com.bbyoda;
+package com.bbyoda.reader;
 
 import com.mpatric.mp3agic.ID3v2;
 import com.mpatric.mp3agic.InvalidDataException;
@@ -22,6 +22,7 @@ import java.util.List;
 
 
 public class Main {
+
     static void main(String[] args) throws Exception {
         if (args.length != 1) throw new IllegalArgumentException("Please provide valid mp3 directory!");
 
@@ -60,7 +61,7 @@ public class Main {
             }
         }).toList();
 
-        try (Connection conn = DriverManager.getConnection("jdbc:h2:~/mydatabase;AUTO_SERVER=TRUE;INIT=runscript from './create.sql'")) {
+        try (Connection conn = DriverManager.getConnection("jdbc:h2:~/mydatabase;AUTO_SERVER=TRUE;INIT=runscript from 'classpath:create.sql'")) {
             PreparedStatement st = conn.prepareStatement("INSERT INTO AUDIOS (artist, release_year, album, title) VALUES (?, ?, ?, ?);");
 
             for (Audio audio : audios) {
@@ -68,7 +69,7 @@ public class Main {
                 st.setString(2, audio.year());
                 st.setString(3, audio.album());
                 st.setString(4, audio.title());
-                st.executeUpdate();
+
                 st.addBatch();
             }
 
@@ -88,6 +89,7 @@ public class Main {
         server.setHandler(context);
 
         context.addServlet(AudioServlet.class, "/songs");
+        context.addServlet(HelloWorldServlet.class, "/hello");
 
         server.start();
         server.join();
@@ -105,7 +107,7 @@ public class Main {
 
                 while (rs.next()) {
                     builder.append("<tr class=\"table\">")
-                            .append("<td>").append(rs.getString("year")).append("</td>")
+                            .append("<td>").append(rs.getString("release_year")).append("</td>")
                             .append("<td>").append(rs.getString("artist")).append("</td>")
                             .append("<td>").append(rs.getString("album")).append("</td>")
                             .append("<td>").append(rs.getString("title")).append("</td>")
@@ -115,8 +117,15 @@ public class Main {
                 throw new RuntimeException(e);
             }
 
-            String html = "<html><h1>Your Songs</h1><table><tr><th>Year</th><th>Artist</th><th>Album</th><th>Title</th></tr>" + builder + "</table></html>";
+            String html = "<html><h1>Your audios</h1><table><tr><th>Year</th><th>Artist</th><th>Album</th><th>Title</th></tr>" + builder + "</table></html>";
             resp.getWriter().write(html);
+        }
+    }
+
+    public static class HelloWorldServlet extends HttpServlet {
+        @Override
+        protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+            resp.getWriter().write("Hello, World!");
         }
     }
 
