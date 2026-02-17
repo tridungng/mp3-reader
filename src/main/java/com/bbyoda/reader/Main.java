@@ -23,6 +23,9 @@ import java.util.List;
 
 public class Main {
 
+    private static final String DB_URL = "jdbc:h2:~/mydatabase;AUTO_SERVER=TRUE";
+    private static final String INIT_DB_URL = DB_URL + ";INIT=runscript from 'classpath:create.sql'";
+
     static void main(String[] args) throws Exception {
         if (args.length != 1) throw new IllegalArgumentException("Please provide valid mp3 directory!");
 
@@ -30,7 +33,7 @@ public class Main {
                 "-webPort", "8082"
         ).start();
 
-        System.out.println("H2 Web Console running at:" + webServer.getURL());
+        System.out.println("H2 Web Console running at: " + webServer.getURL());
 
         String pathString = args[0];
         Path path = Paths.get(pathString);
@@ -55,13 +58,18 @@ public class Main {
             try {
                 Mp3File mp3File = new Mp3File(p);
                 ID3v2 id3 = mp3File.getId3v2Tag();
+
+                if (id3 == null) return new Audio("", "", "", "");
+
                 return new Audio(id3.getArtist(), id3.getYear(), id3.getAlbum(), id3.getTitle());
+
             } catch (IOException | UnsupportedTagException | InvalidDataException e) {
                 throw new RuntimeException(e);
             }
         }).toList();
 
-        try (Connection conn = DriverManager.getConnection("jdbc:h2:~/mydatabase;AUTO_SERVER=TRUE;INIT=runscript from 'classpath:create.sql'")) {
+        try (Connection conn = DriverManager.getConnection(INIT_DB_URL)) {
+            System.out.println("Connected to the database successfully.");
             PreparedStatement st = conn.prepareStatement("INSERT INTO AUDIOS (artist, release_year, album, title) VALUES (?, ?, ?, ?);");
 
             for (Audio audio : audios) {
@@ -91,12 +99,15 @@ public class Main {
         context.addServlet(AudioServlet.class, "/songs");
         context.addServlet(HelloWorldServlet.class, "/hello");
 
+        System.out.println("Server running at:" + connector.getHost() + ":" + connector.getPort());
+
         server.start();
         server.join();
 
     }
 
     public static class AudioServlet extends HttpServlet {
+
         @Override
         protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
             StringBuilder builder = new StringBuilder();
@@ -123,6 +134,7 @@ public class Main {
     }
 
     public static class HelloWorldServlet extends HttpServlet {
+        
         @Override
         protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
             resp.getWriter().write("Hello, World!");
